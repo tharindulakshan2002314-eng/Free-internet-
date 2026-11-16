@@ -1,13 +1,12 @@
-
 workflows:
   android-workflow:
     name: Android Debug Build
     environment:
       java: 17
     scripts:
-      - name: Build Debug APK
+      - name: Install Gradle and Build APK
         script: |
-          chmod +x gradlew
+          gradle wrapper
           ./gradlew assembleDebug
     artifacts:
       - app/build/outputs/apk/debug/*.apk
