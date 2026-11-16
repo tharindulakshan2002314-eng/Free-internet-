@@ -22,14 +22,13 @@ jobs:
       with:
         packages: 'platforms;android-33 platforms;android-34 build-tools;33.0.2 build-tools;34.0.0'
 
-    - name: Generate Gradle Wrapper
-      run: gradle wrapper --gradle-version 8.5
+    - name: Download and Setup Gradle 8.5
+      run: |
+        wget https://services.gradle.org/distributions/gradle-8.5-bin.zip
+        unzip -q gradle-8.5-bin.zip
 
-    - name: Grant execute permission for gradlew
-      run: chmod +x gradlew
-
-    - name: Build Debug APK
-      run: ./gradlew assembleDebug
+    - name: Build Debug APK with Gradle 8.5
+      run: ./gradle-8.5/bin/gradle assembleDebug
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
